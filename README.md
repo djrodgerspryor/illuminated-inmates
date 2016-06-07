@@ -1,0 +1,3 @@
+# illuminated-inmates
+
+100 people know that they will soon all be locked up in the same prison under solitary confinement. Each day, one of them — chosen at random — will be brought into the interrogation room, see the light switch then offered the chance to flip it before the next person comes in on the following day. The chosen prisoner will then be asked 'have all prisoners been interrogated yet?' if they answer affirmatively and correctly, all prisoners will be released. If their affirmative response is incorrect, all prisoners will be executed. What scheme allows the prisoners to escape most quickly (on average) with no chance of being executed?
