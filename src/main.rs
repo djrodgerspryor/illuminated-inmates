@@ -36,20 +36,27 @@ impl Prisoner {
         }
     }
 
-    fn select_light_position(&mut self, day: u32, light_is_on: bool, self_index: usize) -> bool {
+    fn get_todays_prisoner_indexes(&self, day: u32) -> Vec<usize> {
         let prisoner_count = self.known_visited_prisoners.len();
+        let period = prisoner_count;
+        let day_index = (day as usize) % period;
 
+        vec![day_index]
+    }
+
+    fn select_light_position(&mut self, day: u32, light_is_on: bool, self_index: usize) -> bool {
         // I now know that I've been interrogated
         self.known_visited_prisoners[self_index] = true;
 
         // If the previous prisoner knew that this prisoner has been interrogated
         if day > 0 && light_is_on {
-            // TODO: multiple strategies
-            self.known_visited_prisoners[((day - 1) as usize) % prisoner_count] = true;
+            for i in self.get_todays_prisoner_indexes(day - 1) {
+                 self.known_visited_prisoners[i] = true;
+            }
         }
 
         // Return whether we know if today's prisoner has been interrogated
-        self.known_visited_prisoners[(day as usize) % prisoner_count]
+        self.get_todays_prisoner_indexes(day).iter().all(|&i| self.known_visited_prisoners[i])
     }
 
     fn count_known(&self) -> u32 {
