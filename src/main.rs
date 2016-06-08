@@ -26,6 +26,18 @@ struct Args {
     flag_log_period: u32,
 }
 
+struct SimulationResult {
+    last_prisoner_interrogated_on_day: u32,
+    prisoners_freed_on_day: u32,
+}
+
+fn count_true(iter: std::slice::Iter<bool>) -> u32 {
+    iter.fold(
+        0u32,
+        |sum, &is_true|
+            sum + if is_true { 1 } else { 0 }
+    )
+}
 
 #[derive(Clone)]
 struct Prisoner {
@@ -62,25 +74,25 @@ impl Prisoner {
     }
 
     fn count_known(&self) -> u32 {
-        self.known_visited_prisoners.iter().fold(
-            0u32,
-            |sum, &has_been_interrogated|
-                sum + if has_been_interrogated { 1 } else { 0 }
-        )
+        count_true(self.known_visited_prisoners.iter())
     }
 }
 
 struct WorldState {
     prisoners: Vec<Prisoner>,
+    interrogated_prisoners: Vec<bool>,
     day: u32,
     light_is_on: bool,
+    last_prisoner_interrogated_on_day: Option<u32>,
 }
 impl WorldState {
     fn new(prisoner_count: usize) -> WorldState {
         WorldState {
             prisoners: vec![Prisoner::new(prisoner_count); prisoner_count],
+            interrogated_prisoners: vec![false; prisoner_count],
             day: 0,
             light_is_on: false,
+            last_prisoner_interrogated_on_day: None,
         }
     }
 
@@ -89,14 +101,40 @@ impl WorldState {
         let chosen_prisoner_index = rand::thread_rng().gen_range(0usize, prisoner_count);
         let mut chosen_prisoner = &mut self.prisoners[chosen_prisoner_index];
 
+        // Mark the chosen prisoner as having been interrogated (for checking the prisoner's statement)
+        self.interrogated_prisoners[chosen_prisoner_index] = true;
+
         self.light_is_on = chosen_prisoner.select_light_position(
             self.day,
             self.light_is_on,
             chosen_prisoner_index,
         );
 
+        let actual_count = count_true(self.interrogated_prisoners.iter());
+        let reported_count = chosen_prisoner.count_known();
+
+        // If the last prisoner hasn't yet been interrogated
+        match self.last_prisoner_interrogated_on_day {
+            Some(_) => {},
+            None => {
+                // If the last prisoner was just interrogated
+                if actual_count == (prisoner_count as u32) {
+                    // Record the day when the last prisoner was interrogated
+                    self.last_prisoner_interrogated_on_day = Some(self.day);
+                }
+            },
+        }
+
+        if reported_count > actual_count {
+            panic!(
+                "Prisoner over-estimated the count of interrogated prisoners. Actual count: {}, Reported count: {}",
+                actual_count,
+                reported_count
+            );
+        }
+
         // If this prisoner now knows that all prisoners have been interrogated
-        if chosen_prisoner.count_known() == (prisoner_count as u32) {
+        if reported_count == (prisoner_count as u32) {
             return true; // Done
         }
 
@@ -114,7 +152,7 @@ impl WorldState {
 }
 
 // Returns the duration in days
-fn run_simulation(prisoner_count: usize, maybe_log_period: Option<u32>) -> u32 {
+fn run_simulation(prisoner_count: usize, maybe_log_period: Option<u32>) -> SimulationResult {
     // If a log period was provided
     match maybe_log_period {
         Some(_) => {
@@ -138,9 +176,16 @@ fn run_simulation(prisoner_count: usize, maybe_log_period: Option<u32>) -> u32 {
         }
     }
 
-    println!("Done! Day: {}", state.day);
+    println!(
+        "Done! Day: {}, Last Interrogation: {}",
+        state.day,
+        state.last_prisoner_interrogated_on_day.unwrap(),
+    );
 
-    state.day
+    SimulationResult {
+        last_prisoner_interrogated_on_day: state.last_prisoner_interrogated_on_day.unwrap(),
+        prisoners_freed_on_day: state.day,
+    }
 }
 
 fn main() {
@@ -158,9 +203,10 @@ fn main() {
             )
         });
 
-        result_iterator.collect::<Vec<u32>>()
+        result_iterator.collect::<Vec<SimulationResult>>()
     });
 
-    let average_runtime: u32 = simulation_results.iter().fold(0, |sum, x| sum + x) / args.flag_repetitions;
-    println!("Average run-time (over {} runs): {} days", args.flag_repetitions, average_runtime);
+    let average_runtime: u32 = simulation_results.iter().fold(0, |sum, sim_result| sum + sim_result.prisoners_freed_on_day) / args.flag_repetitions;
+    let average_last_interrogated_day: u32 = simulation_results.iter().fold(0, |sum, sim_result| sum + sim_result.last_prisoner_interrogated_on_day) / args.flag_repetitions;
+    println!("Average results (over {} simulations): last interrogation day {}, last {} day", args.flag_repetitions, average_last_interrogated_day, average_runtime);
 }
