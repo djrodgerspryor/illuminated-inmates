@@ -1,6 +1,8 @@
 extern crate rand;
 extern crate docopt;
 extern crate rustc_serialize;
+extern crate crossbeam;
+extern crate simple_parallel;
 
 use rand::Rng;
 use docopt::Docopt;
@@ -112,18 +114,31 @@ impl WorldState {
 }
 
 // Returns the duration in days
-fn run_simulation(prisoner_count: usize, log_period: u32) -> u32 {
-    println!("Beginning simulation with {} prisoners", prisoner_count);
+fn run_simulation(prisoner_count: usize, maybe_log_period: Option<u32>) -> u32 {
+    // If a log period was provided
+    match maybe_log_period {
+        Some(_) => {
+            println!("\nBeginning simulation with {} prisoners", prisoner_count);
+        },
+        None => {},
+    }
 
     let mut state = WorldState::new(prisoner_count);
 
     while !state.iterate() {
-        if state.day % log_period == 0 {
-            println!("Day: {}, max-known: {}", state.day, state.best_known());
+        // If a log period was provided
+        match maybe_log_period {
+            Some(log_period) => {
+                // If the current day aligns with the specified period
+                if state.day % log_period == 0 {
+                    println!("Day: {}, max-known: {}", state.day, state.best_known());
+                }
+            },
+            None => {},
         }
     }
 
-    println!("Done! Day: {}\n", state.day);
+    println!("Done! Day: {}", state.day);
 
     state.day
 }
@@ -131,9 +146,20 @@ fn run_simulation(prisoner_count: usize, log_period: u32) -> u32 {
 fn main() {
     let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
 
-    let simulation_results = (0..args.flag_repetitions)
-        .map(|_| run_simulation(args.flag_prisoner_count, args.flag_log_period))
-        .collect::<Vec<u32>>();
+    let simulation_results = crossbeam::scope(|scope| {
+        let result_iterator = simple_parallel::map(scope, (0..args.flag_repetitions), |_| {
+            run_simulation(
+                args.flag_prisoner_count,
+                if args.flag_log_period == 0 {
+                    None
+                } else {
+                    Some(args.flag_log_period)
+                }
+            )
+        });
+
+        result_iterator.collect::<Vec<u32>>()
+    });
 
     let average_runtime: u32 = simulation_results.iter().fold(0, |sum, x| sum + x) / args.flag_repetitions;
     println!("Average run-time (over {} runs): {} days", args.flag_repetitions, average_runtime);

@@ -7,3 +7,5 @@ authors = ["Daniel Rodgers-Pryor <djrodgerspryor@gmail.com>"]
 rand = "0.3.14"
 docopt = "0.6.80"
 rustc-serialize = "0.3.19"
+crossbeam = "0.1.6"
+simple_parallel = "0.3.0"
