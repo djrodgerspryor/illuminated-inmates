@@ -1,0 +1,19 @@
+{
+    "folders":
+    [
+        {
+            "file_exclude_patterns":
+            [
+                "*.o",
+                "*.so",
+                "*.rlib",
+                "*.dll",
+            ],
+            "folder_exclude_patterns":
+            [
+                "target",
+            ],
+            "path": "."
+        },
+    ]
+}
