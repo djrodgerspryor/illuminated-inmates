@@ -51,9 +51,10 @@ impl Prisoner {
     }
 
     fn get_todays_prisoner_indexes(&self, day: u32) -> Vec<usize> {
+        let repeats = 40; // TODO: properly optimise this value
         let prisoner_count = self.known_visited_prisoners.len();
-        let period = prisoner_count;
-        let day_index = (day as usize) % period;
+        let period = prisoner_count * repeats;
+        let day_index = ((day as usize) % period) / repeats;
 
         vec![day_index]
     }
@@ -208,5 +209,11 @@ fn main() {
 
     let average_runtime: u32 = simulation_results.iter().fold(0, |sum, sim_result| sum + sim_result.prisoners_freed_on_day) / args.flag_repetitions;
     let average_last_interrogated_day: u32 = simulation_results.iter().fold(0, |sum, sim_result| sum + sim_result.last_prisoner_interrogated_on_day) / args.flag_repetitions;
-    println!("Average results (over {} simulations): last interrogation day {}, last {} day", args.flag_repetitions, average_last_interrogated_day, average_runtime);
+    println!(
+        "Average results (over {} simulations): last interrogation day {}, last {} day ({:.1} years)",
+        args.flag_repetitions,
+        average_last_interrogated_day,
+        average_runtime,
+        (average_runtime as f32) / 365.25
+    );
 }
